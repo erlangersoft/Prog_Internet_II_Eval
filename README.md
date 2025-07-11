@@ -221,3 +221,18 @@ Para soporte adicional, revisar:
 
 **Desarrollado para UCATEC - Ingeniería de Sistemas**  
 **Materia: Programación en Internet II**
+
+## 👨‍🏫 Información del Docente
+
+**Ing. Erlanger Santos Calle Guzmán**  
+*Docente de Programación en Internet II*  
+*Universidad de Ciencias Administrativas y Tecnológicas - UCATEC*  
+*Carrera: Ingeniería de Sistemas*
+
+## 🌐 Demo en Línea
+
+Puedes acceder a una demostración del sistema en:
+
+**[https://erlangersoft.github.io/Prog_Internet_II_Eval/](https://erlangersoft.github.io/Prog_Internet_II_Eval/)**
+
+> **Nota**: Esta es una versión de demostración para fines educativos y de prueba.
