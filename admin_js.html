@@ -1,0 +1,2122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Sistema de Evaluación</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .admin-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .admin-card {
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .student-row {
+            transition: all 0.3s ease;
+        }
+
+        .student-row:hover {
+            background-color: #f8fafc;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-completed { background-color: #10b981; color: white; }
+        .status-in-progress { background-color: #f59e0b; color: white; }
+        .status-expired { background-color: #ef4444; color: white; }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .notification.success { background-color: #10b981; }
+        .notification.error { background-color: #ef4444; }
+        .notification.info { background-color: #3b82f6; }
+
+        /* Estilos para la pantalla de login */
+        .login-screen {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #5b21b6 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 400px;
+            width: 100%;
+            margin: 1rem;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.3);
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px 0 rgba(59, 130, 246, 0.4);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .login-attempts {
+            background: #fffbeb;
+            border: 1px solid #fed7aa;
+            color: #d97706;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        /* Animaciones para login */
+        @keyframes loginFadeIn {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .login-card {
+            animation: loginFadeIn 0.6s ease-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .login-card.shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* Asegurar que solo una pantalla sea visible */
+        .screen-hidden {
+            display: none !important;
+        }
+
+        .admin-container.hidden {
+            display: none;
+        }
+
+        /* Estilos mejorados para el modal de respuestas */
+        .answers-modal-container {
+            max-height: calc(100vh - 2rem);
+            min-height: 80vh;
+        }
+
+        .answers-content-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 #f7fafc;
+            max-height: calc(100vh - 8rem);
+        }
+
+        .answers-content-scroll::-webkit-scrollbar {
+            width: 14px;
+        }
+
+        .answers-content-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+
+        .answers-content-scroll::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #cbd5e0 0%, #94a3b8 100%);
+            border-radius: 8px;
+            border: 2px solid #f1f5f9;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .answers-content-scroll::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+        }
+
+        /* Asegurar que el modal use toda la altura disponible */
+        #answers-modal {
+            align-items: flex-start !important;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        /* Estilos para el contenido del modal */
+        .answer-category {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .answer-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .answer-item:hover {
+            border-color: #cbd5e0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .student-info-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Estilos para botones de finalización */
+        .finalization-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .finalization-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        @media (min-width: 640px) {
+            .finalization-buttons {
+                flex-direction: row;
+                justify-content: center;
+            }
+        }
+
+        .finalize-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .finalize-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .status-graded {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Pantalla de Login -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-card">
+            <div class="p-8">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Panel de Administración</h2>
+                    <p class="text-gray-600 text-sm">Ingrese sus credenciales para acceder</p>
+                </div>
+                
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label for="admin-username" class="block text-sm font-medium text-gray-700 mb-2">Usuario:</label>
+                        <input type="text" id="admin-username" class="login-input" placeholder="Nombre de usuario" autocomplete="username" required>
+                    </div>
+                    
+                    <div>
+                        <label for="admin-password" class="block text-sm font-medium text-gray-700 mb-2">Contraseña:</label>
+                        <input type="password" id="admin-password" class="login-input" placeholder="Contraseña de administrador" autocomplete="current-password" required>
+                    </div>
+                    
+                    <button type="submit" id="login-btn" class="login-btn">
+                        <span class="flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                            </svg>
+                            Iniciar Sesión
+                        </span>
+                    </button>
+                    
+                    <div id="login-error" class="login-error hidden"></div>
+                    
+                    <div id="login-attempts" class="login-attempts hidden"></div>
+                </form>
+                
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="text-xs text-gray-500 space-y-1 text-center">
+                        <p class="text-orange-600">⚠️ Contacte al administrador del sistema para obtener las credenciales de acceso</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Principal (oculto inicialmente) -->
+    <div id="admin-panel" class="admin-container hidden screen-hidden">
+    <div class="min-h-screen py-8 px-4">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-white mb-2">Panel de Administración</h1>
+                <p class="text-blue-100">Sistema de Evaluación - Programación en Internet II</p>
+            </div>
+
+            <!-- Estadísticas generales -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="stats-card rounded-xl shadow-lg p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium opacity-80">Exámenes Completados</p>
+                            <p class="text-2xl font-semibold" id="completed-count">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-card rounded-xl shadow-lg p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium opacity-80">En Progreso</p>
+                            <p class="text-2xl font-semibold" id="progress-count">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-card rounded-xl shadow-lg p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium opacity-80">Expirados</p>
+                            <p class="text-2xl font-semibold" id="expired-count">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-card rounded-xl shadow-lg p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"></path>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium opacity-80">Total Estudiantes</p>
+                            <p class="text-2xl font-semibold" id="total-count">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles -->
+            <div class="admin-card rounded-xl shadow-xl p-6 mb-8">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Gestión de Datos</h2>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="refreshData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Actualizar
+                        </button>
+                        <button onclick="exportAllData()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Exportar CSV
+                        </button>
+                        <button onclick="clearAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Limpiar Datos
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de estudiantes -->
+            <div class="admin-card rounded-xl shadow-xl overflow-hidden">
+                <div class="bg-gray-50 px-6 py-4 border-b">
+                    <h3 class="text-lg font-semibold text-gray-800">Lista de Estudiantes</h3>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estudiante</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cédula</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inicio</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entrega</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Puntaje</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="students-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Los datos se cargan dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="no-data-message" class="hidden p-8 text-center text-gray-500">
+                    <svg class="mx-auto w-12 h-12 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-2.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 009.586 13H7"></path>
+                    </svg>
+                    <p>No hay datos disponibles</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificación -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Modal para ver respuestas -->
+    <div id="answers-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-start justify-center p-4">
+        <div class="bg-white rounded-xl w-full max-w-6xl mt-4 mb-4 shadow-2xl flex flex-col answers-modal-container">
+            <div class="flex items-center justify-between p-6 border-b bg-gray-50 rounded-t-xl flex-shrink-0">
+                <h3 class="text-xl font-semibold text-gray-800">Respuestas del Estudiante</h3>
+                <button onclick="closeAnswersModal()" class="text-gray-400 hover:text-gray-600 transition-colors" title="Cerrar ventana">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 answers-content-scroll">
+                <div id="answers-content" class="space-y-6">
+                    <!-- Contenido se carga dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de autenticación
+        const AUTH_CONFIG = {
+            SESSION_KEY: 'admin_session_token',
+            MAX_ATTEMPTS: 5,
+            LOCKOUT_TIME: 15 * 60 * 1000, // 15 minutos en millisegundos
+            SESSION_DURATION: 60 * 60 * 1000, // 1 hora en millisegundos
+            ATTEMPTS_KEY: 'admin_login_attempts',
+            LOCKOUT_KEY: 'admin_lockout_time'
+        };
+
+        // Credenciales por defecto (en producción usar hash seguro)
+        // NOTA PARA ADMINISTRADOR: Usuario: admin | Contraseña: ucatec2025
+        const DEFAULT_CREDENTIALS = {
+            username: 'admin',
+            password: 'ucatec2025' // En producción, usar hash con salt
+        };
+
+        // Configuración del sistema
+        const STORAGE_KEYS = {
+            STUDENTS: 'exam_students_data',
+            SUBMISSIONS: 'exam_submissions'
+        };
+
+        // Variables globales de autenticación
+        let loginAttempts = parseInt(localStorage.getItem(AUTH_CONFIG.ATTEMPTS_KEY) || '0');
+        let lockoutTime = parseInt(localStorage.getItem(AUTH_CONFIG.LOCKOUT_KEY) || '0');
+
+        // Inicialización del sistema
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeAuth();
+        });
+
+        // Inicializar sistema de autenticación
+        function initializeAuth() {
+            const loginScreen = document.getElementById('login-screen');
+            const adminPanel = document.getElementById('admin-panel');
+            const loginForm = document.getElementById('login-form');
+
+            // Verificar sesión existente
+            if (isSessionValid()) {
+                showAdminPanel();
+                return;
+            }
+
+            // Verificar bloqueo por intentos fallidos
+            if (isLocked()) {
+                showLockoutMessage();
+                return;
+            }
+
+            // Asegurar que solo la pantalla de login sea visible
+            loginScreen.style.display = 'flex';
+            loginScreen.classList.remove('hidden', 'screen-hidden');
+            adminPanel.style.display = 'none';
+            adminPanel.classList.add('hidden', 'screen-hidden');
+            
+            // Manejar envío del formulario
+            loginForm.addEventListener('submit', handleLogin);
+            
+            // Actualizar contador de intentos si hay
+            updateAttemptsDisplay();
+        }
+
+        // Verificar si la sesión es válida
+        function isSessionValid() {
+            const sessionData = localStorage.getItem(AUTH_CONFIG.SESSION_KEY);
+            if (!sessionData) return false;
+
+            try {
+                const session = JSON.parse(sessionData);
+                const now = Date.now();
+                
+                // Verificar si la sesión no ha expirado
+                if (now < session.expires) {
+                    // Extender sesión si queda menos de 10 minutos
+                    if (session.expires - now < 10 * 60 * 1000) {
+                        extendSession();
+                    }
+                    return true;
+                }
+                
+                // Sesión expirada, limpiar
+                localStorage.removeItem(AUTH_CONFIG.SESSION_KEY);
+                return false;
+            } catch (error) {
+                localStorage.removeItem(AUTH_CONFIG.SESSION_KEY);
+                return false;
+            }
+        }
+
+        // Verificar si está bloqueado por intentos fallidos
+        function isLocked() {
+            if (lockoutTime === 0) return false;
+            
+            const now = Date.now();
+            if (now < lockoutTime) {
+                return true;
+            }
+            
+            // Bloqueo expirado, reiniciar contador
+            resetLoginAttempts();
+            return false;
+        }
+
+        // Mostrar mensaje de bloqueo
+        function showLockoutMessage() {
+            const attemptsDiv = document.getElementById('login-attempts');
+            const remaining = Math.ceil((lockoutTime - Date.now()) / 60000);
+            
+            attemptsDiv.innerHTML = `🔒 Acceso bloqueado. Intente nuevamente en ${remaining} minutos.`;
+            attemptsDiv.classList.remove('hidden');
+            
+            // Deshabilitar formulario
+            document.getElementById('login-btn').disabled = true;
+            document.getElementById('admin-username').disabled = true;
+            document.getElementById('admin-password').disabled = true;
+            
+            // Revisar cada minuto si se desbloquea
+            setTimeout(() => {
+                if (!isLocked()) {
+                    location.reload();
+                }
+            }, 60000);
+        }
+
+        // Manejar intento de login
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            if (isLocked()) {
+                showLockoutMessage();
+                return;
+            }
+
+            const loginBtn = document.getElementById('login-btn');
+            const usernameInput = document.getElementById('admin-username');
+            const passwordInput = document.getElementById('admin-password');
+            const errorDiv = document.getElementById('login-error');
+            
+            // Limpiar errores previos
+            errorDiv.classList.add('hidden');
+            
+            // Deshabilitar formulario temporalmente
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = `
+                <span class="flex items-center justify-center gap-2">
+                    <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Verificando...
+                </span>
+            `;
+
+            // Simular delay de autenticación
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+
+            // Verificar credenciales
+            if (authenticateUser(username, password)) {
+                // Login exitoso
+                console.log('Login exitoso para usuario:', username);
+                createSession();
+                resetLoginAttempts();
+                showLoginSuccess();
+                
+                setTimeout(() => {
+                    showAdminPanel();
+                }, 1000);
+                
+            } else {
+                // Login fallido
+                console.log('Login fallido para usuario:', username);
+                loginAttempts++;
+                localStorage.setItem(AUTH_CONFIG.ATTEMPTS_KEY, loginAttempts.toString());
+                
+                // Verificar si debe bloquear
+                if (loginAttempts >= AUTH_CONFIG.MAX_ATTEMPTS) {
+                    lockoutTime = Date.now() + AUTH_CONFIG.LOCKOUT_TIME;
+                    localStorage.setItem(AUTH_CONFIG.LOCKOUT_KEY, lockoutTime.toString());
+                    showLockoutMessage();
+                    return;
+                }
+                
+                // Mostrar error
+                const remainingAttempts = AUTH_CONFIG.MAX_ATTEMPTS - loginAttempts;
+                errorDiv.textContent = `❌ Credenciales incorrectas. Intentos restantes: ${remainingAttempts}`;
+                errorDiv.classList.remove('hidden');
+                
+                // Efecto de shake
+                document.querySelector('.login-card').classList.add('shake');
+                setTimeout(() => {
+                    document.querySelector('.login-card').classList.remove('shake');
+                }, 500);
+                
+                // Limpiar contraseña
+                passwordInput.value = '';
+                passwordInput.focus();
+                
+                updateAttemptsDisplay();
+            }
+
+            // Rehabilitar formulario
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = `
+                <span class="flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1"></path>
+                    </svg>
+                    Iniciar Sesión
+                </span>
+            `;
+        }
+
+        // Autenticar usuario (en producción usar hash seguro)
+        function authenticateUser(username, password) {
+            console.log('Intentando autenticar:', { username, password, expected: DEFAULT_CREDENTIALS });
+            const isValid = username === DEFAULT_CREDENTIALS.username && 
+                           password === DEFAULT_CREDENTIALS.password;
+            console.log('Resultado de autenticación:', isValid);
+            return isValid;
+        }
+
+        // Crear sesión
+        function createSession() {
+            const sessionData = {
+                username: DEFAULT_CREDENTIALS.username,
+                loginTime: Date.now(),
+                expires: Date.now() + AUTH_CONFIG.SESSION_DURATION,
+                sessionId: 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+            };
+            
+            console.log('Creando sesión:', sessionData);
+            localStorage.setItem(AUTH_CONFIG.SESSION_KEY, JSON.stringify(sessionData));
+        }
+
+        // Extender sesión
+        function extendSession() {
+            const sessionData = JSON.parse(localStorage.getItem(AUTH_CONFIG.SESSION_KEY));
+            sessionData.expires = Date.now() + AUTH_CONFIG.SESSION_DURATION;
+            localStorage.setItem(AUTH_CONFIG.SESSION_KEY, JSON.stringify(sessionData));
+        }
+
+        // Mostrar éxito de login
+        function showLoginSuccess() {
+            const loginBtn = document.getElementById('login-btn');
+            loginBtn.innerHTML = `
+                <span class="flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    ¡Acceso autorizado!
+                </span>
+            `;
+            loginBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        }
+
+        // Mostrar panel de administración
+        function showAdminPanel() {
+            console.log('Mostrando panel de administración');
+            const loginScreen = document.getElementById('login-screen');
+            const adminPanel = document.getElementById('admin-panel');
+            
+            // Ocultar completamente la pantalla de login
+            loginScreen.style.display = 'none';
+            loginScreen.classList.add('screen-hidden');
+            
+            // Mostrar el panel de administración
+            adminPanel.classList.remove('hidden', 'screen-hidden');
+            adminPanel.style.display = 'block';
+            
+            // Cargar datos del sistema
+            loadData();
+            
+            // Agregar botón de logout
+            addLogoutButton();
+        }
+
+        // Agregar botón de logout
+        function addLogoutButton() {
+            const header = document.querySelector('#admin-panel .text-center.mb-8');
+            if (header && !document.getElementById('logout-btn')) {
+                const logoutBtn = document.createElement('button');
+                logoutBtn.id = 'logout-btn';
+                logoutBtn.className = 'absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition duration-200 flex items-center gap-2';
+                logoutBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                    </svg>
+                    Cerrar Sesión
+                `;
+                logoutBtn.onclick = logout;
+                
+                // Hacer el header relativo para posicionar el botón
+                header.style.position = 'relative';
+                header.appendChild(logoutBtn);
+            }
+        }
+
+        // Cerrar sesión
+        function logout() {
+            if (confirm('¿Está seguro de que desea cerrar la sesión?')) {
+                localStorage.removeItem(AUTH_CONFIG.SESSION_KEY);
+                
+                // Ocultar panel de administración y mostrar login
+                const loginScreen = document.getElementById('login-screen');
+                const adminPanel = document.getElementById('admin-panel');
+                
+                adminPanel.style.display = 'none';
+                adminPanel.classList.add('hidden', 'screen-hidden');
+                
+                loginScreen.style.display = 'flex';
+                loginScreen.classList.remove('hidden', 'screen-hidden');
+                
+                // Limpiar formulario
+                document.getElementById('admin-username').value = '';
+                document.getElementById('admin-password').value = '';
+                document.getElementById('login-error').classList.add('hidden');
+            }
+        }
+
+        // Reiniciar intentos de login
+        function resetLoginAttempts() {
+            loginAttempts = 0;
+            lockoutTime = 0;
+            localStorage.removeItem(AUTH_CONFIG.ATTEMPTS_KEY);
+            localStorage.removeItem(AUTH_CONFIG.LOCKOUT_KEY);
+        }
+
+        // Actualizar display de intentos
+        function updateAttemptsDisplay() {
+            const attemptsDiv = document.getElementById('login-attempts');
+            
+            if (loginAttempts > 0) {
+                const remaining = AUTH_CONFIG.MAX_ATTEMPTS - loginAttempts;
+                attemptsDiv.textContent = `⚠️ Intentos fallidos: ${loginAttempts}. Quedan ${remaining} intentos antes del bloqueo.`;
+                attemptsDiv.classList.remove('hidden');
+            } else {
+                attemptsDiv.classList.add('hidden');
+            }
+        }
+
+        // Resto del código del sistema de administración...
+
+        // Cargar y mostrar datos
+        function loadData() {
+            const students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '{}');
+            const submissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '{}');
+
+            updateStatistics(students);
+            populateStudentsTable(students, submissions);
+        }
+
+        // Actualizar estadísticas
+        function updateStatistics(students) {
+            const stats = {
+                completed: 0,
+                inProgress: 0,
+                expired: 0,
+                graded: 0,
+                total: 0
+            };
+
+            Object.values(students).forEach(student => {
+                stats.total++;
+                switch (student.status) {
+                    case 'completed':
+                        stats.completed++;
+                        break;
+                    case 'in_progress':
+                        stats.inProgress++;
+                        break;
+                    case 'expired':
+                        stats.expired++;
+                        break;
+                    case 'graded':
+                        stats.graded++;
+                        break;
+                }
+            });
+
+            document.getElementById('completed-count').textContent = stats.completed;
+            document.getElementById('progress-count').textContent = stats.inProgress;
+            document.getElementById('expired-count').textContent = stats.expired;
+            document.getElementById('total-count').textContent = stats.total;
+            
+            // Actualizar contador de calificados si existe el elemento
+            const gradedElement = document.getElementById('graded-count');
+            if (gradedElement) {
+                gradedElement.textContent = stats.graded;
+            }
+        }
+
+        // Poblar tabla de estudiantes
+        function populateStudentsTable(students, submissions) {
+            const tableBody = document.getElementById('students-table-body');
+            const noDataMessage = document.getElementById('no-data-message');
+
+            if (Object.keys(students).length === 0) {
+                tableBody.innerHTML = '';
+                noDataMessage.classList.remove('hidden');
+                return;
+            }
+
+            noDataMessage.classList.add('hidden');
+            
+            const rows = Object.entries(students).map(([ciHash, student]) => {
+                const submission = submissions[ciHash];
+                const startTime = student.start_time ? new Date(student.start_time).toLocaleString('es-ES') : 'N/A';
+                const endTime = student.submission_time ? new Date(student.submission_time).toLocaleString('es-ES') : 'N/A';
+                
+                // Calcular puntaje total incluyendo calificaciones manuales
+                let totalScore = 'N/A';
+                if (submission?.calculated_score) {
+                    const objectiveScore = submission.calculated_score.total || 0;
+                    const manualGrades = submission.manual_grades || {};
+                    const developmentScore = Object.values(manualGrades).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0);
+                    totalScore = (submission.calculated_score.final_total || (objectiveScore + developmentScore)).toFixed(1);
+                }
+
+                return `
+                    <tr class="student-row">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${student.name}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${student.ci_hash.split('_')[2] ? '*'.repeat(student.ci_hash.split('_')[2].length) : 'N/A'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="status-badge status-${student.status}">${getStatusText(student.status)}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${startTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${endTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${totalScore !== 'N/A' ? totalScore + '/100' : 'N/A'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex gap-2">
+                                ${submission ? `<button onclick="viewAnswers('${ciHash}')" class="text-blue-600 hover:text-blue-900">Ver Respuestas</button>` : ''}
+                                <button onclick="downloadStudentData('${ciHash}')" class="text-green-600 hover:text-green-900">Descargar</button>
+                                <button onclick="deleteStudent('${ciHash}')" class="text-red-600 hover:text-red-900">Eliminar</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tableBody.innerHTML = rows;
+        }
+
+        // Obtener texto del estado
+        function getStatusText(status) {
+            const statusTexts = {
+                'completed': 'Completado',
+                'in_progress': 'En Progreso', 
+                'expired': 'Expirado',
+                'graded': 'Calificado'
+            };
+            return statusTexts[status] || status;
+        }
+
+        // Ver respuestas de un estudiante
+        function viewAnswers(ciHash) {
+            const submissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '{}');
+            const submission = submissions[ciHash];
+
+            if (!submission) {
+                showNotification('No se encontraron respuestas para este estudiante.', 'error');
+                return;
+            }
+
+            const answersContent = document.getElementById('answers-content');
+            const answers = submission.answers || {};
+
+            // Definir respuestas correctas para comparación
+            const correctAnswers = {
+                // Selección múltiple
+                q1: 'c', q2: 'b', q3: 'c', q4: 'c', q5: 'b',
+                // Verdadero/Falso
+                q6: 'false', q7: 'true', q8: 'true', q9: 'true', q10: 'false', q18: 'true',
+                // Respuesta corta (múltiples respuestas posibles)
+                q11: ['protected'],
+                q12: ['xmlhttprequest'],
+                q13: ['.catch()', '.catch', 'catch'],
+                q14: ['cifrar', 'cifrado', 'encriptar'],
+                q15: 'b',
+                // Asociación
+                q16_a: '1', q16_b: '2', q16_c: '3', q16_d: '4',
+                // q17 se mantiene para mostrar pero no suma puntos
+                q17: 'a'
+            };
+
+            // Función para obtener la respuesta esperada formateada
+            function getExpectedAnswer(questionId) {
+                const correct = correctAnswers[questionId];
+                if (!correct) return null;
+                
+                if (Array.isArray(correct)) {
+                    return `Respuestas válidas: ${correct.join(', ')}`;
+                } else {
+                    return `Respuesta correcta: ${correct}`;
+                }
+            }
+
+            // Función para verificar si una respuesta es correcta
+            function isAnswerCorrect(questionId, userAnswer) {
+                const correct = correctAnswers[questionId];
+                if (!correct) return null; // No hay respuesta correcta definida
+                
+                if (Array.isArray(correct)) {
+                    // Para respuestas de texto con múltiples opciones válidas
+                    const userAnswerLower = (userAnswer || '').toLowerCase().trim();
+                    return correct.some(answer => userAnswerLower.includes(answer.toLowerCase()));
+                } else {
+                    // Para respuestas exactas
+                    return userAnswer === correct;
+                }
+            }
+
+            // Función para generar el ícono de estado
+            function getStatusIcon(questionId, userAnswer) {
+                const isCorrect = isAnswerCorrect(questionId, userAnswer);
+                if (isCorrect === null) {
+                    // Para preguntas de desarrollo o sin respuesta correcta definida
+                    return '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-xs">?</span>';
+                } else if (isCorrect) {
+                    return '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-600" title="Respuesta correcta"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg></span>';
+                } else {
+                    return '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600" title="Respuesta incorrecta"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></span>';
+                }
+            }
+
+            let content = `
+                <div class="student-info-card">
+                    <h4 class="font-bold text-xl mb-4">📋 Información del Estudiante</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
+                        <div>
+                            <p><strong>Nombre:</strong> ${submission.student_name}</p>
+                            <p><strong>Cédula:</strong> ${submission.student_ci}</p>
+                        </div>
+                        <div>
+                            <p><strong>Fecha de Entrega:</strong> ${new Date(submission.submission_time).toLocaleString('es-ES')}</p>
+                            <p><strong>Puntaje Total:</strong> <span class="text-yellow-300 font-bold">${(submission.calculated_score?.final_total || ((submission.calculated_score?.total || 0) + (submission.manual_grades ? Object.values(submission.manual_grades || {}).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0) : 0))).toFixed(1)}/100 puntos</span></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Resumen detallado de puntuaciones -->
+                    <div class="bg-white bg-opacity-20 rounded-lg p-4 border border-white border-opacity-30">
+                        <h5 class="font-bold text-lg mb-3 text-yellow-200">🎯 Resumen de Puntuaciones</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                            <div class="bg-white bg-opacity-10 rounded-lg p-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium">Selección Múltiple:</span>
+                                    <span class="font-bold text-yellow-200">${submission.calculated_score?.multiple || 0}/20</span>
+                                </div>
+                                <div class="text-xs text-gray-200 mt-1">5 preguntas × 4 pts c/u</div>
+                            </div>
+                            <div class="bg-white bg-opacity-10 rounded-lg p-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium">Verdadero/Falso:</span>
+                                    <span class="font-bold text-yellow-200">${submission.calculated_score?.tf || 0}/18</span>
+                                </div>
+                                <div class="text-xs text-gray-200 mt-1">6 preguntas × 3 pts c/u</div>
+                            </div>
+                            <div class="bg-white bg-opacity-10 rounded-lg p-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium">Respuesta Corta:</span>
+                                    <span class="font-bold text-yellow-200">${submission.calculated_score?.short || 0}/20</span>
+                                </div>
+                                <div class="text-xs text-gray-200 mt-1">4 preguntas × 4 pts + 1 × 4 pts</div>
+                            </div>
+                            <div class="bg-white bg-opacity-10 rounded-lg p-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium">Asociación:</span>
+                                    <span class="font-bold text-yellow-200">${submission.calculated_score?.assoc || 0}/10</span>
+                                </div>
+                                <div class="text-xs text-gray-200 mt-1">4 conceptos × 2.5 pts c/u</div>
+                            </div>
+                            <div class="bg-white bg-opacity-10 rounded-lg p-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium">Desarrollo:</span>
+                                    <span class="font-bold text-yellow-200" data-section="development">${submission.calculated_score?.development || submission.manual_grades ? Object.values(submission.manual_grades || {}).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0).toFixed(1) : 0}/32</span>
+                                </div>
+                                <div class="text-xs text-gray-200 mt-1">Evaluación manual</div>
+                            </div>
+                            <div class="bg-yellow-600 bg-opacity-30 rounded-lg p-3 border border-yellow-400">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold">TOTAL:</span>
+                                    <span class="font-bold text-xl text-yellow-100">${(submission.calculated_score?.final_total || ((submission.calculated_score?.total || 0) + (submission.manual_grades ? Object.values(submission.manual_grades || {}).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0) : 0))).toFixed(1)}/100</span>
+                                </div>
+                                <div class="text-xs text-yellow-200 mt-1">Puntuación final</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Porcentaje y calificación -->
+                        <div class="mt-4 text-center">
+                            <div class="inline-flex items-center gap-4 bg-white bg-opacity-10 rounded-lg px-4 py-2">
+                                <span class="text-sm">Calificación Final:</span>
+                                <span class="font-bold text-xl text-yellow-200">${(submission.calculated_score?.final_total || ((submission.calculated_score?.total || 0) + (submission.manual_grades ? Object.values(submission.manual_grades || {}).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0) : 0))).toFixed(1)}/100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <p class="text-blue-800 text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Use la rueda del mouse o la barra de desplazamiento para ver todas las respuestas
+                        </p>
+                        <div class="flex items-center gap-4 text-sm">
+                            <div class="flex items-center gap-1">
+                                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-600"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg></span>
+                                <span class="text-green-700">Correcta</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></span>
+                                <span class="text-red-700">Incorrecta</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Mostrar respuestas por categoría con mejor organización
+            const categories = {
+                'Selección Múltiple (20 pts)': ['q1', 'q2', 'q3', 'q4', 'q5'],
+                'Verdadero/Falso (18 pts)': ['q6', 'q7', 'q8', 'q9', 'q10', 'q18'],
+                'Completar y Respuesta Corta (20 pts)': ['q11', 'q12', 'q13', 'q14', 'q15'],
+                'Asociación y Conceptos (10 pts)': ['q16_a', 'q16_b', 'q16_c', 'q16_d', 'q17'],
+                'Desarrollo y Programación (32 pts)': ['p1', 'p2', 'p3', 'p4', 'p5']
+            };
+
+            Object.entries(categories).forEach(([category, questions]) => {
+                const isDevelopmentSection = category.includes('Desarrollo y Programación');
+                const isShortAnswerSection = category.includes('Completar y Respuesta Corta');
+                const allowsManualGrading = isDevelopmentSection || isShortAnswerSection;
+                
+                // Calcular estadísticas de la sección (solo para preguntas objetivas)
+                let correctCount = 0;
+                let totalCount = 0;
+                
+                if (!isDevelopmentSection) {
+                    questions.forEach(qId => {
+                        const userAnswer = answers[qId];
+                        if (userAnswer !== undefined && userAnswer !== '') {
+                            totalCount++;
+                            if (isAnswerCorrect(qId, userAnswer)) {
+                                correctCount++;
+                            }
+                        }
+                    });
+                }
+                
+                content += `<div class="answer-category">
+                    <div class="flex items-center justify-between mb-4">
+                        <h5 class="font-bold text-lg text-blue-700 border-b border-blue-200 pb-2">
+                            📝 ${category}
+                            ${allowsManualGrading ? '<span class="text-sm font-normal text-orange-600 ml-2">(Calificación Manual Disponible)</span>' : ''}
+                        </h5>
+                        ${!isDevelopmentSection && totalCount > 0 ? `
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                    ✓ ${correctCount}
+                                </span>
+                                <span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                                    ✗ ${totalCount - correctCount}
+                                </span>
+                                <span class="text-gray-500">de ${totalCount}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="space-y-3">`;
+
+                questions.forEach(qId => {
+                    const answer = answers[qId] || 'Sin respuesta';
+                    const questionNumber = qId.toUpperCase();
+                    const statusIcon = getStatusIcon(qId, answer);
+                    const isShortAnswerSection = category.includes('Completar y Respuesta Corta');
+                    const expectedAnswer = isShortAnswerSection ? getExpectedAnswer(qId) : null;
+                    
+                    // Formatear respuestas largas para mejor visualización
+                    let formattedAnswer = answer;
+                    if (typeof answer === 'string' && answer.length > 100) {
+                        formattedAnswer = `<div class="bg-gray-50 p-3 rounded border-l-4 border-blue-400 mt-2 font-mono text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">${answer}</div>`;
+                    } else {
+                        formattedAnswer = `<span class="text-gray-800">${answer}</span>`;
+                    }
+                    
+                    // Obtener calificación existente o calcular automática
+                    let currentGrade = submission.manual_grades?.[qId];
+                    
+                    // Si no hay calificación manual y es respuesta corta, asignar automáticamente
+                    if (currentGrade === undefined && isShortAnswerSection) {
+                        const isCorrect = isAnswerCorrect(qId, answer);
+                        if (isCorrect === true) {
+                            currentGrade = getMaxPointsForQuestion(qId);
+                        } else if (isCorrect === false) {
+                            currentGrade = 0;
+                        } else {
+                            currentGrade = ''; // Por revisar
+                        }
+                    } else if (currentGrade === undefined) {
+                        currentGrade = '';
+                    }
+                    
+                    content += `
+                        <div class="answer-item ${allowsManualGrading ? 'bg-orange-50 border-orange-200' : ''}">
+                            <div class="flex flex-col sm:flex-row sm:items-start gap-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-semibold text-blue-600 text-sm bg-blue-100 px-2 py-1 rounded min-w-max">${questionNumber}</span>
+                                    ${!allowsManualGrading ? statusIcon : ''}
+                                </div>
+                                <div class="flex-1">
+                                    <div>${formattedAnswer}</div>
+                                    ${expectedAnswer ? `
+                                        <div class="mt-2 p-2 bg-blue-50 border-l-4 border-blue-200 rounded-r text-xs">
+                                            <div class="flex items-start gap-2">
+                                                <span class="text-blue-500 mt-0.5">💡</span>
+                                                <span class="text-blue-700 font-medium">${expectedAnswer}</span>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                ${allowsManualGrading ? `
+                                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2 sm:mt-0">
+                                        ${isShortAnswerSection ? `
+                                            <div class="flex items-center gap-1 text-xs">
+                                                ${statusIcon}
+                                                <span class="text-gray-600">${isAnswerCorrect(qId, answer) ? 'Correcta' : isAnswerCorrect(qId, answer) === false ? 'Incorrecta' : 'Por revisar'}</span>
+                                            </div>
+                                        ` : ''}
+                                        <div class="flex items-center gap-2 bg-white p-2 rounded border">
+                                            <label class="text-sm font-medium text-gray-700">Puntos:</label>
+                                            <input type="number" 
+                                                   id="grade-${qId}" 
+                                                   value="${currentGrade}"
+                                                   min="0" 
+                                                   max="${getMaxPointsForQuestion(qId)}" 
+                                                   step="0.5"
+                                                   class="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                                                   placeholder="0">
+                                            <span class="text-xs text-gray-500">/${getMaxPointsForQuestion(qId)}</span>
+                                        </div>
+                                        <button onclick="saveQuestionGrade('${ciHash}', '${qId}')" 
+                                                class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors">
+                                            Guardar
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                content += `</div></div>`;
+            });
+
+            // Agregar información adicional si está disponible
+            if (submission.auto_submit) {
+                content += `
+                    <div class="answer-category bg-yellow-50 border-yellow-200">
+                        <h5 class="font-bold text-lg mb-2 text-yellow-700">⚠️ Información Adicional</h5>
+                        <p class="text-yellow-800">Este examen fue enviado automáticamente al finalizar el tiempo.</p>
+                    </div>
+                `;
+            }
+
+            // Agregar panel de resumen de calificación manual
+            const manualGrades = submission.manual_grades || {};
+            const totalManualPoints = Object.values(manualGrades).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0);
+            
+            // Separar puntos de desarrollo y respuestas cortas
+            const developmentGrades = {};
+            const shortAnswerGrades = {};
+            
+            Object.entries(manualGrades).forEach(([qId, grade]) => {
+                if (qId.startsWith('p')) {
+                    developmentGrades[qId] = grade;
+                } else if (['q11', 'q12', 'q13', 'q14', 'q15'].includes(qId)) {
+                    shortAnswerGrades[qId] = grade;
+                }
+            });
+            
+            const developmentTotal = Object.values(developmentGrades).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0);
+            const shortAnswerManualTotal = Object.values(shortAnswerGrades).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0);
+            
+            content += `
+                <div class="answer-category bg-green-50 border-green-200">
+                    <h5 class="font-bold text-lg mb-3 text-green-700">📊 Resumen de Calificación Manual</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <p><strong>Respuestas Cortas (Manual):</strong> <span class="text-green-700 font-bold">${shortAnswerManualTotal.toFixed(1)}/20 pts</span></p>
+                            <p class="text-xs text-gray-600 mt-1">Calificaciones manuales en respuestas cortas</p>
+                        </div>
+                        <div>
+                            <p><strong>Preguntas de Desarrollo:</strong> <span class="text-green-700 font-bold">${developmentTotal.toFixed(1)}/32 pts</span></p>
+                            <p class="text-xs text-gray-600 mt-1">Calificaciones manuales de desarrollo</p>
+                        </div>
+                        <div>
+                            <p><strong>Puntaje Total Final:</strong> <span class="text-green-700 font-bold">${((submission.calculated_score?.total || 0) + totalManualPoints).toFixed(1)}/100 pts</span></p>
+                            <p class="text-xs text-gray-600 mt-1">Incluye todas las calificaciones</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-gray-600">
+                        <p><strong>Nota:</strong> Las calificaciones manuales reemplazan las automáticas en las secciones donde se aplican.</p>
+                    </div>
+                    <div class="mt-3">
+                        <button onclick="updateFinalScore('${ciHash}')" 
+                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm">
+                            🔄 Actualizar Puntaje Final
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Agregar indicador de final del contenido con botón funcional
+            content += `
+                <div class="text-center mt-8 py-6 border-t-2 border-gray-300 bg-gray-50 rounded-lg">
+                    <p class="text-gray-600 text-sm mb-4">📄 Revisión completada</p>
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                        <button onclick="finalizeExam('${ciHash}')" 
+                                class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Finalizar y Calificar Examen
+                        </button>
+                        <button onclick="generateExamReport('${ciHash}')" 
+                                class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H9.414a1 1 0 01-.707-.293l-2-2A1 1 0 005.586 6H4a2 2 0 00-2 2v6a2 2 0 002 2h2m3 4h6m-6 0l3-3m-3 3l3 3"></path>
+                            </svg>
+                            Generar Reporte de Evaluación
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Use "Finalizar" para marcar el examen como calificado o "Generar Reporte" para imprimir el documento oficial</p>
+                </div>
+            `;
+
+            answersContent.innerHTML = content;
+            document.getElementById('answers-modal').classList.remove('hidden');
+            
+            // Inicializar calificaciones automáticas para respuestas cortas si no existen
+            initializeShortAnswerGrades(ciHash, submission);
+            
+            // Scroll al inicio del modal
+            const scrollContainer = document.querySelector('.answers-content-scroll');
+            if (scrollContainer) {
+                scrollContainer.scrollTop = 0;
+                
+                // Mostrar notificación sobre el scroll después de un momento
+                setTimeout(() => {
+                    if (scrollContainer.scrollHeight > scrollContainer.clientHeight) {
+                        showNotification('Use la rueda del mouse para desplazarse y ver todas las respuestas', 'info');
+                    }
+                }, 1000);
+            }
+        }
+
+        // Cerrar modal de respuestas
+        function closeAnswersModal() {
+            document.getElementById('answers-modal').classList.add('hidden');
+        }
+
+        // Cerrar modal con clic fuera o tecla Escape
+        document.getElementById('answers-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'answers-modal') {
+                closeAnswersModal();
+            }
+        });
+
+        // Cerrar modal con tecla Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('answers-modal');
+                if (!modal.classList.contains('hidden')) {
+                    closeAnswersModal();
+                }
+            }
+        });
+
+        // Descargar datos de un estudiante
+        function downloadStudentData(ciHash) {
+            const students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '{}');
+            const submissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '{}');
+            
+            const student = students[ciHash];
+            const submission = submissions[ciHash];
+
+            if (!student) {
+                showNotification('Estudiante no encontrado.', 'error');
+                return;
+            }
+
+            const data = {
+                estudiante: student.name,
+                ci_hash: ciHash,
+                estado: student.status,
+                fecha_inicio: student.start_time,
+                fecha_entrega: student.submission_time,
+                intentos: student.attempts,
+                respuestas: submission?.answers || {},
+                puntaje: submission?.calculated_score || {}
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `estudiante_${ciHash}_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotification('Datos del estudiante descargados exitosamente.', 'success');
+        }
+
+        // Eliminar estudiante
+        function deleteStudent(ciHash) {
+            if (!confirm('¿Está seguro de que desea eliminar este estudiante? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            const students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '{}');
+            const submissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '{}');
+
+            delete students[ciHash];
+            delete submissions[ciHash];
+
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+            localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
+
+            showNotification('Estudiante eliminado exitosamente.', 'success');
+            loadData();
+        }
+
+        // Actualizar datos
+        function refreshData() {
+            loadData();
+            showNotification('Datos actualizados exitosamente.', 'success');
+        }
+
+        // Exportar todos los datos a CSV
+        function exportAllData() {
+            const students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '{}');
+            const submissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '{}');
+
+            if (Object.keys(students).length === 0) {
+                showNotification('No hay datos para exportar.', 'error');
+                return;
+            }
+
+            let csv = 'Nombre,CI Hash,Estado,Fecha Inicio,Fecha Entrega,Puntaje Total,Auto Envío\n';
+
+            Object.entries(students).forEach(([ciHash, student]) => {
+                const submission = submissions[ciHash];
+                const score = submission?.calculated_score?.total || 0;
+                const autoSubmit = submission?.auto_submit ? 'Sí' : 'No';
+                
+                csv += `"${student.name}","${ciHash}","${student.status}","${student.start_time || ''}","${student.submission_time || ''}","${score}","${autoSubmit}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `evaluaciones_export_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+                       document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotification('Datos exportados exitosamente.', 'success');
+        }
+
+        // Limpiar todos los datos
+        function clearAllData() {
+            if (!confirm('¿Está seguro de que desea eliminar TODOS los datos? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            if (!confirm('Esta acción eliminará permanentemente todos los datos de estudiantes y respuestas. ¿Confirma que desea continuar?')) {
+                return;
+            }
+
+            localStorage.removeItem(STORAGE_KEYS.STUDENTS);
+            localStorage.removeItem(STORAGE_KEYS.SUBMISSIONS);
+            localStorage.removeItem('exam_current_session');
+
+            showNotification('Todos los datos han sido eliminados exitosamente.', 'success');
+            loadData();
+        }
+
+        // Mostrar notificación
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+
+        // Obtener puntos máximos para una pregunta
+        function getMaxPointsForQuestion(questionId) {
+            // Distribución de puntos para preguntas de desarrollo (total 32 pts sobre 100 pts total)
+            const developmentPoints = {
+                'p1': 8,  // Código PHP (Clase Producto)
+                'p2': 6,  // Documento XML (Estudiantes)
+                'p3': 6,  // API Fetch JavaScript
+                'p4': 6,  // Diseño API RESTful
+                'p5': 6   // Explicación Hosting vs VPS
+            };
+            
+            // Distribución de puntos para respuestas cortas (total 20 pts)
+            const shortAnswerPoints = {
+                'q11': 4, // protected
+                'q12': 4, // xmlhttprequest
+                'q13': 4, // .catch()
+                'q14': 4, // cifrar/cifrado/encriptar
+                'q15': 4  // opción b
+            };
+            
+            return developmentPoints[questionId] || shortAnswerPoints[questionId] || 0;
+        }
+
+        // Guardar calificación de una pregunta específica
+        function saveQuestionGrade(ciHash, questionId) {
+            const gradeInput = document.getElementById(`grade-${questionId}`);
+            const grade = parseFloat(gradeInput.value) || 0;
+            const maxPoints = getMaxPointsForQuestion(questionId);
+
+            // Validar que la calificación no exceda el máximo
+            if (grade > maxPoints) {
+                showNotification(`La calificación no puede exceder ${maxPoints} puntos.`, 'error');
+                gradeInput.value = maxPoints;
+                return;
+            }
+
+            if (grade < 0) {
+                showNotification('La calificación no puede ser negativa.', 'error');
+                gradeInput.value = 0;
+                return;
+            }
+
+            // Obtener datos actuales
+            const submissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '{}');
+            
+            if (!submissions[ciHash]) {
+                showNotification('No se encontraron datos del estudiante.', 'error');
+                return;
+            }
+
+            // Inicializar manual_grades si no existe
+            if (!submissions[ciHash].manual_grades) {
+                submissions[ciHash].manual_grades = {};
+            }
+
+            // Guardar la calificación
+            submissions[ciHash].manual_grades[questionId] = grade;
+
+            // Calcular y actualizar el puntaje final automáticamente
+            const manualGrades = submissions[ciHash].manual_grades || {};
+            
+            // Separar calificaciones por tipo
+            const developmentGrades = {};
+            const shortAnswerGrades = {};
+            
+            Object.entries(manualGrades).forEach(([qId, grade]) => {
+                if (qId.startsWith('p')) {
+                    developmentGrades[qId] = grade;
+                } else if (['q11', 'q12', 'q13', 'q14', 'q15'].includes(qId)) {
+                    shortAnswerGrades[qId] = grade;
+                }
+            });
+            
+            const developmentTotal = Object.values(developmentGrades).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0);
+            const shortAnswerManualTotal = Object.values(shortAnswerGrades).reduce((sum, grade) => sum + (parseFloat(grade) || 0), 0);
+            
+            if (!submissions[ciHash].calculated_score) {
+                submissions[ciHash].calculated_score = { total: 0 };
+            }
+            
+            // Actualizar puntajes separados
+            submissions[ciHash].calculated_score.development = developmentTotal;
+            submissions[ciHash].calculated_score.short_manual = shortAnswerManualTotal;
+            
+            // Calcular puntaje final considerando si hay calificaciones manuales para respuestas cortas
+            let baseScore = submissions[ciHash].calculated_score.total || 0;
+            if (Object.keys(shortAnswerGrades).length > 0) {
+                // Si hay calificaciones manuales, usar esas en lugar de las automáticas
+                const automaticShortScore = submissions[ciHash].calculated_score.short || 0;
+                baseScore = baseScore - automaticShortScore + shortAnswerManualTotal;
+            }
+            
+            submissions[ciHash].calculated_score.final_total = baseScore + developmentTotal;
+
+            // Actualizar localStorage
+            localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
+
+            // Mostrar confirmación
+            showNotification(`Calificación guardada: ${grade}/${maxPoints} puntos para ${questionId.toUpperCase()}`, 'success');
+            
+            // Actualizar visualmente el resumen si está visible
+            updateManualGradeSummary(ciHash);
+            
+            // Actualizar tabla principal para reflejar cambios inmediatamente
+            loadData();
+        }
+
+        // Finalizar examen y marcar como calificado
+        function finalizeExam(ciHash) {
+            if (!confirm('¿Está seguro de que desea finalizar y marcar este examen como calificado? Esta acción cambiará el estado del estudiante.')) {
+                return;
+            }
+
+            const students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '{}');
+            const submissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '{}');
+            
+            if (!students[ciHash] || !submissions[ciHash]) {
+                showNotification('No se encontraron datos del estudiante.', 'error');
+                return;
+            }
+
+            // Cambiar estado a 'graded' (calificado)
+            students[ciHash].status = 'graded';
+            students[ciHash].graded_time = new Date().toISOString();
+            students[ciHash].graded_by = 'admin'; // En producción usar usuario actual
+
+            // Marcar submission como finalizado
+            submissions[ciHash].graded = true;
+            submissions[ciHash].graded_time = new Date().toISOString();
+
+            // Guardar cambios
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+            localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
+
+            showNotification('Examen finalizado y marcado como calificado exitosamente.', 'success');
+            
+            // Actualizar datos y cerrar modal
+            loadData();
+            closeAnswersModal();
+        }
+
+        // Generar reporte de evaluación para impresión
+        function generateExamReport(ciHash) {
+            const students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '{}');
+            const submissions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '{}');
+            
+            const student = students[ciHash];
+            const submission = submissions[ciHash];
+
+            if (!student || !submission) {
+                showNotification('No se encontraron datos completos del estudiante.', 'error');
+                return;
+            }
+
+            // Crear ventana nueva para el reporte
+            const reportWindow = window.open('', '_blank', 'width=210mm,height=297mm');
+            
+            const reportHTML = generateReportHTML(student, submission);
+            
+            reportWindow.document.write(reportHTML);
+            reportWindow.document.close();
+            
+            // Esperar a que se cargue y luego mostrar diálogo de impresión
+            setTimeout(() => {
+                reportWindow.print();
+            }, 500);
+
+            showNotification('Reporte de evaluación generado. Use Ctrl+P para imprimir.', 'success');
+        }
+
+        // Generar HTML del reporte de evaluación
+        function generateReportHTML(student, submission) {
+            const answers = submission.answers || {};
+            const manualGrades = submission.manual_grades || {};
+            
+            // Definir respuestas correctas y preguntas
+            const questions = {
+                // Selección múltiple
+                q1: { text: "¿Cuál de las siguientes NO es una característica de AJAX?", answer: "c) Requiere recarga completa de la página", points: 4 },
+                q2: { text: "¿Qué propiedad CSS se utiliza para crear un diseño de cuadrícula?", answer: "b) display: grid", points: 4 },
+                q3: { text: "En PHP, ¿cuál es la diferencia principal entre include y require?", answer: "c) require detiene la ejecución si falla, include no", points: 4 },
+                q4: { text: "¿Qué método HTTP se utiliza típicamente para enviar datos de formulario?", answer: "c) POST", points: 4 },
+                q5: { text: "¿Cuál es la principal ventaja de usar un CDN?", answer: "b) Mejora la velocidad de carga global", points: 4 },
+                
+                // Verdadero/Falso
+                q6: { text: "JavaScript es un lenguaje compilado", answer: "Falso", points: 3 },
+                q7: { text: "CSS Grid permite crear diseños bidimensionales", answer: "Verdadero", points: 3 },
+                q8: { text: "PHP es un lenguaje del lado del servidor", answer: "Verdadero", points: 3 },
+                q9: { text: "HTTPS utiliza encriptación SSL/TLS", answer: "Verdadero", points: 3 },
+                q10: { text: "Una API REST debe mantener estado entre solicitudes", answer: "Falso", points: 3 },
+                q18: { text: "JSON es un formato de intercambio de datos", answer: "Verdadero", points: 3 },
+                
+                // Respuesta corta
+                q11: { text: "¿Qué palabra clave en PHP se usa para definir la visibilidad de una propiedad que solo puede ser accedida dentro de la clase?", answer: "protected", points: 4 },
+                q12: { text: "¿Qué objeto JavaScript se utiliza para realizar peticiones HTTP asíncronas?", answer: "XMLHttpRequest", points: 4 },
+                q13: { text: "¿Qué método de Promise se utiliza para manejar errores en JavaScript?", answer: ".catch()", points: 4 },
+                q14: { text: "¿Cuál es el propósito principal de HTTPS en comparación con HTTP?", answer: "Cifrar/Encriptar", points: 4 },
+                q15: { text: "En una arquitectura REST, ¿qué método HTTP se utiliza para actualizar parcialmente un recurso?", answer: "PATCH", points: 4 },
+                
+                // Asociación
+                q16_a: { text: "HTML → ", answer: "1. Estructura", points: 2.5 },
+                q16_b: { text: "CSS → ", answer: "2. Presentación", points: 2.5 },
+                q16_c: { text: "JavaScript → ", answer: "3. Comportamiento", points: 2.5 },
+                q16_d: { text: "PHP → ", answer: "4. Servidor", points: 2.5 },
+                q17: { text: "¿Qué significa la sigla API?", answer: "a) Application Programming Interface", points: 0 },
+                
+                // Desarrollo
+                p1: { text: "Escriba una clase PHP llamada 'Producto' con propiedades privadas para id, nombre y precio, y métodos para obtener y establecer estos valores.", answer: "Código PHP", points: 8 },
+                p2: { text: "Cree un documento XML que represente una lista de estudiantes con sus nombres, edades y carreras.", answer: "Documento XML", points: 6 },
+                p3: { text: "Escriba código JavaScript que utilice fetch() para obtener datos de una API y mostrarlos en el DOM.", answer: "Código JavaScript", points: 6 },
+                p4: { text: "Diseñe una API RESTful para gestionar libros en una biblioteca (especificar endpoints, métodos HTTP y códigos de respuesta).", answer: "Diseño API", points: 6 },
+                p5: { text: "Explique las diferencias entre hosting compartido y VPS, mencionando ventajas y desventajas de cada uno.", answer: "Explicación", points: 6 }
+            };
+
+            const finalScore = submission.calculated_score?.final_total || 0;
+            const currentDate = new Date().toLocaleDateString('es-ES', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+
+            return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Evaluación - ${student.name}</title>
+    <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 20mm;
+            }
+            body { 
+                font-family: 'Arial', sans-serif; 
+                font-size: 12px; 
+                line-height: 1.4; 
+                color: #000;
+            }
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            color: #000;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #003366;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background: #003366;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+        }
+        
+        .university-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #003366;
+            margin-bottom: 5px;
+        }
+        
+        .exam-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        
+        .subject {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .student-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+        }
+        
+        .section-title {
+            background: #003366;
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .question {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-left: 3px solid #007bff;
+            background: #f8f9fa;
+        }
+        
+        .question-number {
+            font-weight: bold;
+            color: #003366;
+        }
+        
+        .question-text {
+            margin: 5px 0;
+        }
+        
+        .answer {
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border: 1px solid #ddd;
+            min-height: 20px;
+        }
+        
+        .correct-answer {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+        
+        .incorrect-answer {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        
+        .points {
+            text-align: right;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e9ecef;
+            border: 2px solid #003366;
+        }
+        
+        .summary-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #003366;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .score-breakdown {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .total-score {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #003366;
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px solid #003366;
+            background: white;
+        }
+        
+        .signatures {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+        }
+        
+        .signature-line {
+            border-top: 2px solid #000;
+            padding-top: 10px;
+            text-align: center;
+            margin-top: 60px;
+        }
+        
+        .development-answer {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            min-height: 80px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">UCATEC</div>
+        <div class="university-name">UNIVERSIDAD PRIVADA DE CIENCIAS ADMINISTRATIVAS Y TECNOLÓGICAS</div>
+        <div class="exam-title">EXAMEN DE SUFICIENCIA</div>
+        <div class="subject">PROGRAMACIÓN EN INTERNET II</div>
+    </div>
+
+    <div class="student-info">
+        <div>
+            <strong>Estudiante:</strong> ${student.name}<br>
+            <strong>Cédula:</strong> ${submission.student_ci}<br>
+            <strong>Fecha de Evaluación:</strong> ${currentDate}
+        </div>
+        <div>
+            <strong>Fecha de Entrega:</strong> ${new Date(submission.submission_time).toLocaleString('es-ES')}<br>
+            <strong>Estado:</strong> ${student.status === 'graded' ? 'Calificado' : 'Revisado'}<br>
+            <strong>Puntaje Final:</strong> ${finalScore.toFixed(1)}/100 puntos
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">I. SELECCIÓN MÚLTIPLE (20 puntos)</div>
+        ${['q1', 'q2', 'q3', 'q4', 'q5'].map(qId => {
+            const userAnswer = answers[qId] || 'Sin respuesta';
+            const isCorrect = (qId === 'q1' && userAnswer === 'c') || 
+                            (qId === 'q2' && userAnswer === 'b') || 
+                            (qId === 'q3' && userAnswer === 'c') || 
+                            (qId === 'q4' && userAnswer === 'c') || 
+                            (qId === 'q5' && userAnswer === 'b');
+            
+            return `
+                <div class="question">
+                    <div class="question-number">${qId.toUpperCase()}.</div>
+                    <div class="question-text">${questions[qId].text}</div>
+                    <div class="answer ${isCorrect ? 'correct-answer' : 'incorrect-answer'}">
+                        <strong>Respuesta:</strong> ${userAnswer}
+                    </div>
+                    <div class="points">${isCorrect ? '4' : '0'}/4 puntos</div>
+                </div>
+            `;
+        }).join('')}
+    </div>
+
+    <div class="section">
+        <div class="section-title">II. VERDADERO/FALSO (18 puntos)</div>
+        ${['q6', 'q7', 'q8', 'q9', 'q10', 'q18'].map(qId => {
+            const userAnswer = answers[qId] || 'Sin respuesta';
+            const correctAnswers = { q6: 'false', q7: 'true', q8: 'true', q9: 'true', q10: 'false', q18: 'true' };
+            const isCorrect = userAnswer === correctAnswers[qId];
+            
+            return `
+                <div class="question">
+                    <div class="question-number">${qId.toUpperCase()}.</div>
+                    <div class="question-text">${questions[qId].text}</div>
+                    <div class="answer ${isCorrect ? 'correct-answer' : 'incorrect-answer'}">
+                        <strong>Respuesta:</strong> ${userAnswer === 'true' ? 'Verdadero' : userAnswer === 'false' ? 'Falso' : userAnswer}
+                    </div>
+                    <div class="points">${isCorrect ? '3' : '0'}/3 puntos</div>
+                </div>
+            `;
+        }).join('')}
+    </div>
+
+    <div class="section">
+        <div class="section-title">III. COMPLETAR Y RESPUESTA CORTA (20 puntos)</div>
+        ${['q11', 'q12', 'q13', 'q14', 'q15'].map(qId => {
+            const userAnswer = answers[qId] || 'Sin respuesta';
+            const manualScore = manualGrades[qId] !== undefined ? manualGrades[qId] : 0;
+            
+            return `
+                <div class="question">
+                    <div class="question-number">${qId.toUpperCase()}.</div>
+                    <div class="question-text">${questions[qId].text}</div>
+                    <div class="answer">
+                        <strong>Respuesta:</strong> ${userAnswer}
+                    </div>
+                    <div class="points">${manualScore}/4 puntos</div>
+                </div>
+            `;
+        }).join('')}
+    </div>
+
+    <div class="section">
+        <div class="section-title">IV. ASOCIACIÓN Y CONCEPTOS (10 puntos)</div>
+        ${['q16_a', 'q16_b', 'q16_c', 'q16_d', 'q17'].map(qId => {
+            const userAnswer = answers[qId] || 'Sin respuesta';
+            const correctAnswers = { q16_a: '1', q16_b: '2', q16_c: '3', q16_d: '4', q17: 'a' };
+            const isCorrect = userAnswer === correctAnswers[qId];
+            const points = qId === 'q17' ? 0 : (isCorrect ? 2.5 : 0);
+            
+            return `
+                <div class="question">
+                    <div class="question-number">${qId.toUpperCase()}.</div>
+                    <div class="question-text">${questions[qId].text}</div>
+                    <div class="answer ${isCorrect ? 'correct-answer' : 'incorrect-answer'}">
+                        <strong>Respuesta:</strong> ${userAnswer}
+                    </div>
+                    <div class="points">${points}/${qId === 'q17' ? '0' : '2.5'} puntos</div>
+                </div>
+            `;
+        }).join('')}
+    </div>
+
+    <div class="section">
+        <div class="section-title">V. DESARROLLO Y PROGRAMACIÓN (32 puntos)</div>
+        ${['p1', 'p2', 'p3', 'p4', 'p5'].map(qId => {
+            const userAnswer = answers[qId] || 'Sin respuesta';
+            const manualScore = manualGrades[qId] !== undefined ? manualGrades[qId] : 0;
+            const maxPoints = qId === 'p1' ? 8 : 6;
+            
+            return `
+                <div class="question">
+                    <div class="question-number">${qId.toUpperCase()}.</div>
+                    <div class="question-text">${questions[qId].text}</div>
+                    <div class="development-answer">${userAnswer}</div>
+                    <div class="points">${manualScore}/${maxPoints} puntos</div>
+                </div>
+            `;
+        }).join('')}
+    </div>
+
+    <div class="summary">
+        <div class="summary-title">RESUMEN DE CALIFICACIÓN</div>
+        <div class="score-breakdown">
+            <div><strong>Sección</strong></div>
+            <div><strong>Obtenido</strong></div>
+            <div><strong>Máximo</strong></div>
+            
+            <div>Selección Múltiple</div>
+            <div>${submission.calculated_score?.multiple || 0}</div>
+            <div>20</div>
+            
+            <div>Verdadero/Falso</div>
+            <div>${submission.calculated_score?.tf || 0}</div>
+            <div>18</div>
+            
+            <div>Respuesta Corta</div>
+            <div>${submission.calculated_score?.short_manual || submission.calculated_score?.short || 0}</div>
+            <div>20</div>
+            
+            <div>Asociación</div>
+            <div>${submission.calculated_score?.assoc || 0}</div>
+            <div>10</div>
+            
+            <div>Desarrollo</div>
+            <div>${submission.calculated_score?.development || 0}</div>
+            <div>32</div>
+        </div>
+        
+        <div class="total-score">
+            CALIFICACIÓN FINAL: ${finalScore.toFixed(1)}/100 PUNTOS
+        </div>
+    </div>
+
+    <div class="signatures">
+        <div>
+            <div class="signature-line">
+                <strong>Firma del Docente</strong><br>
+                Nombre: _______________________<br>
+                Fecha: _______________________
+            </div>
+        </div>
+        <div>
+            <div class="signature-line">
+                <strong>Firma del Estudiante</strong><br>
+                Nombre: _______________________<br>
+                Fecha: _______________________
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+            `;
+        }
+
+        // ...existing code...
+    </script>
+</body>
+</html>
