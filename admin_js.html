@@ -359,7 +359,7 @@
                 
                 <div class="mt-6 pt-6 border-t border-gray-200">
                     <div class="text-xs text-gray-500 space-y-1 text-center">
-                        <p class="text-orange-600">⚠️ Contacte al administrador del sistema para obtener las credenciales de acceso</p>
+                        <p class="text-orange-600">⚠️ Usuario: admin. En el primer ingreso desde este navegador, la contraseña que escriba (mínimo 8 caracteres) quedará definida como contraseña del panel.</p>
                     </div>
                 </div>
             </div>
@@ -527,12 +527,24 @@
             LOCKOUT_KEY: 'admin_lockout_time'
         };
 
-        // Credenciales por defecto (en producción usar hash seguro)
-        // NOTA PARA ADMINISTRADOR: Usuario: admin | Contraseña: [ELIMINADA]
+        // La contraseña del administrador NO se guarda en el código.
+        // Se define en el primer ingreso y se almacena en este navegador
+        // únicamente como hash SHA-256 con sal aleatoria.
         const DEFAULT_CREDENTIALS = {
-            username: 'admin',
-            password: '[ELIMINADA]' // En producción, usar hash con salt
+            username: 'admin'
         };
+        const CREDENTIAL_KEY = 'admin_credential_hash';
+        const MIN_PASSWORD_LENGTH = 8;
+
+        function hasAdminPassword() {
+            return !!localStorage.getItem(CREDENTIAL_KEY);
+        }
+
+        async function hashPassword(password, saltHex) {
+            const data = new TextEncoder().encode(saltHex + ':' + password);
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
 
         // Configuración del sistema
         const STORAGE_KEYS = {
@@ -678,7 +690,7 @@
             const password = passwordInput.value;
 
             // Verificar credenciales
-            if (authenticateUser(username, password)) {
+            if (await authenticateUser(username, password)) {
                 // Login exitoso
                 console.log('Login exitoso para usuario:', username);
                 createSession();
@@ -733,13 +745,30 @@
             `;
         }
 
-        // Autenticar usuario (en producción usar hash seguro)
-        function authenticateUser(username, password) {
-            console.log('Intentando autenticar:', { username, password, expected: DEFAULT_CREDENTIALS });
-            const isValid = username === DEFAULT_CREDENTIALS.username && 
-                           password === DEFAULT_CREDENTIALS.password;
-            console.log('Resultado de autenticación:', isValid);
-            return isValid;
+        // Autenticar usuario. En el primer ingreso se define la contraseña.
+        async function authenticateUser(username, password) {
+            if (username !== DEFAULT_CREDENTIALS.username) return false;
+            if (!window.crypto || !crypto.subtle) {
+                alert('Este navegador no permite verificar la contraseña de forma segura. Abra el panel con HTTPS o en un navegador actualizado.');
+                return false;
+            }
+            const stored = localStorage.getItem(CREDENTIAL_KEY);
+            if (!stored) {
+                if (password.length < MIN_PASSWORD_LENGTH) {
+                    alert('Primer ingreso: defina una contraseña de al menos ' + MIN_PASSWORD_LENGTH + ' caracteres.');
+                    return false;
+                }
+                const salt = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
+                const hash = await hashPassword(password, salt);
+                localStorage.setItem(CREDENTIAL_KEY, JSON.stringify({ salt, hash }));
+                return true;
+            }
+            try {
+                const { salt, hash } = JSON.parse(stored);
+                return (await hashPassword(password, salt)) === hash;
+            } catch (e) {
+                return false;
+            }
         }
 
         // Crear sesión
